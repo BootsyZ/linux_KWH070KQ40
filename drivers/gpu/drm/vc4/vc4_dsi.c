@@ -866,6 +866,7 @@ static bool vc4_dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 	adjusted_mode->hsync_end += adjusted_mode->htotal - mode->htotal;
 	adjusted_mode->hsync_start += adjusted_mode->htotal - mode->htotal;
 
+	printk(KERN_ERR "Adjusted mode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(adjusted_mode));
 	return true;
 }
 
