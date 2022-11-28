@@ -43,17 +43,33 @@ static int kwh070kq40v2l_panel_prepare(struct drm_panel *panel)
 
 	printk(KERN_INFO "kwh070kq40_panel_prepare\n");
 
-	msleep(20);
-	gpiod_set_value(pnl->gpios.power, 1);
-	msleep(20);
-	gpiod_set_value(pnl->gpios.reset, 1);
+	gpiod_set_value(pnl->gpios.power, 0);
 	msleep(120);
+	gpiod_set_value(pnl->gpios.reset, 1);
+	msleep(10); //10ms
+	gpiod_set_value(pnl->gpios.reset, 0);
+	msleep(10); //10ms
+	gpiod_set_value(pnl->gpios.reset, 1);
+	msleep(120); //120ms
+	gpiod_set_value(pnl->gpios.power, 1);
 
-	ret = mipi_dsi_dcs_write(dsi, 0xB2, (u8[]){ 0x10 }, 1); //set to 2 lane
+	ret = mipi_dsi_dcs_write(dsi, 0x87, (u8[]){ 0x5A }, 1); //enable commands
+	if (ret < 0) {
+		dev_err(dev, "failed to enable commands: %d\n", ret);
+		return ret;
+	}
+
+	ret = mipi_dsi_dcs_write(dsi, 0xB2, (u8[]){ 0x50 }, 1); //set to 2 lane
 	if (ret < 0) {
 		dev_err(dev, "failed to set 2lane: %d\n", ret);
 		return ret;
 	}
+
+	/*ret = mipi_dsi_dcs_write(dsi, 0xB1, (u8[]){ 0x08 }, 1); //set to test
+	if (ret < 0) {
+		dev_err(dev, "failed to set test mode: %d\n", ret);
+		return ret;
+	}*/
 
 	return 0;
 }
@@ -61,9 +77,22 @@ static int kwh070kq40v2l_panel_prepare(struct drm_panel *panel)
 static int kwh070kq40v2l_panel_enable(struct drm_panel *panel)
 {
 	struct kwh070kq40v2l_panel *pnl = panel_to_kwh070kq40v2l_panel(panel);
+	int ret;
 
 	printk(KERN_INFO "kwh070kq40_panel_enable\n");
+	pnl->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
+	ret = mipi_dsi_dcs_set_tear_on(pnl->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	if (ret)
+		return ret;
+
+	ret = mipi_dsi_dcs_exit_sleep_mode(pnl->dsi);
+	if (ret)
+		return ret;
+
+	msleep(120);
+
+	mipi_dsi_dcs_set_display_on(pnl->dsi);
 	return mipi_dsi_dcs_exit_sleep_mode(pnl->dsi);
 }
 
@@ -190,11 +219,9 @@ static int kwh070kq40v2l_panel_dsi_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_add(&pnl->panel);
 
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM;
-	/*MIPI_DSI_MODE_VIDEO_HSE*/
-	/*MIPI_DSI_CLOCK_NON_CONTINUOUS*/
-	/*MIPI_DSI_MODE_VIDEO_BURST*/
-	/*MIPI_DSI_MODE_VIDEO_SYNC_PULSE*/
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
+			  MIPI_DSI_CLOCK_NON_CONTINUOUS |
+			  MIPI_DSI_MODE_VIDEO_BURST;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 2;
 
@@ -236,5 +263,6 @@ static struct mipi_dsi_driver kwh070kq40v2l_panel_driver = {
 
 module_mipi_dsi_driver(kwh070kq40v2l_panel_driver);
 
+MODULE_AUTHOR("BootsyZ ");
 MODULE_DESCRIPTION("Formike KWH070KQ40 2-lane panel driver");
 MODULE_LICENSE("GPL v2");

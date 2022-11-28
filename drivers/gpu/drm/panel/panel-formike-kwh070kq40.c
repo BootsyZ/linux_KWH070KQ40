@@ -37,24 +37,65 @@ panel_to_kwh070kq40_panel(struct drm_panel *panel)
 static int kwh070kq40_panel_prepare(struct drm_panel *panel)
 {
 	struct kwh070kq40_panel *pnl = panel_to_kwh070kq40_panel(panel);
+	struct mipi_dsi_device *dsi = pnl->dsi;
+	struct device *dev = &pnl->dsi->dev;
+	int ret;
 
 	printk(KERN_INFO "kwh070kq40_panel_prepare\n");
 
-	msleep(20);
-	gpiod_set_value(pnl->gpios.power, 1);
+	gpiod_set_value(pnl->gpios.power, 0);
 	msleep(20);
 	gpiod_set_value(pnl->gpios.reset, 1);
-	msleep(20);
+	msleep(10); //10ms
+	gpiod_set_value(pnl->gpios.reset, 0);
+	msleep(10); //10ms
+	gpiod_set_value(pnl->gpios.reset, 1);
+	msleep(120); //120ms
+	gpiod_set_value(pnl->gpios.power, 1);
+
+	/*ret = mipi_dsi_dcs_write(dsi, 0x87, (u8[]){ 0x5A }, 1); //enable commands
+	if (ret < 0) {
+		dev_err(dev, "failed to enable commands: %d\n", ret);
+		return ret;
+	}
+
+	ret = mipi_dsi_dcs_write(dsi, 0xB2, (u8[]){ 0x70 }, 1); //set to 4 lane
+	if (ret < 0) {
+		dev_err(dev, "failed to set 2lane: %d\n", ret);
+		return ret;
+	}*/
+
+	/*ret = mipi_dsi_dcs_write(dsi, 0xB1, (u8[]){ 0x08 }, 1); //set to test
+	if (ret < 0) {
+		dev_err(dev, "failed to set test mode: %d\n", ret);
+		return ret;
+	}*/
+
 	return 0;
 }
 
 static int kwh070kq40_panel_enable(struct drm_panel *panel)
 {
 	struct kwh070kq40_panel *pnl = panel_to_kwh070kq40_panel(panel);
+	int ret;
 
 	printk(KERN_INFO "kwh070kq40_panel_enable\n");
 
-	return mipi_dsi_dcs_exit_sleep_mode(pnl->dsi);
+	pnl->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	ret = mipi_dsi_dcs_set_tear_on(pnl->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	if (ret)
+		return ret;
+
+	ret = mipi_dsi_dcs_exit_sleep_mode(pnl->dsi);
+	if (ret)
+		return ret;
+
+	msleep(120);
+
+	mipi_dsi_dcs_set_display_on(pnl->dsi);
+	printk("kwh070kq40_panel_enable2");
+	return 0;
 }
 
 static int kwh070kq40_panel_disable(struct drm_panel *panel)
@@ -79,7 +120,7 @@ static int kwh070kq40_panel_unprepare(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode default_mode = {
-	.clock = 50000,
+	.clock = 55555,
 	.hdisplay = 1024,
 	.hsync_start = 1024 + 160,
 	.hsync_end = 1024 + 160 + 80,
@@ -147,6 +188,7 @@ static int kwh070kq40_panel_dsi_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_init(&pnl->panel, &dsi->dev, &kwh070kq40_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
+
 	pnl->panel.prepare_upstream_first = true;
 
 	pnl->gpios.reset = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
@@ -173,13 +215,16 @@ static int kwh070kq40_panel_dsi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(pnl->gpios.shlr);
 	}
 
-	ret = drm_panel_of_backlight(&pnl->panel);
+	/*ret = drm_panel_of_backlight(&pnl->panel);
 	if (ret)
-		return ret;
+		return ret;*/
 
 	drm_panel_add(&pnl->panel);
 
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
+			  MIPI_DSI_CLOCK_NON_CONTINUOUS |
+			  MIPI_DSI_MODE_VIDEO_BURST;
+	/*dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM;*/
 	/*MIPI_DSI_MODE_VIDEO_HSE*/
 	/*MIPI_DSI_CLOCK_NON_CONTINUOUS*/
 	/*MIPI_DSI_MODE_VIDEO_BURST*/
@@ -225,5 +270,6 @@ static struct mipi_dsi_driver kwh070kq40_panel_driver = {
 
 module_mipi_dsi_driver(kwh070kq40_panel_driver);
 
+MODULE_AUTHOR("BootsyZ ");
 MODULE_DESCRIPTION("Formike KWH070KQ40 panel driver");
 MODULE_LICENSE("GPL v2");
