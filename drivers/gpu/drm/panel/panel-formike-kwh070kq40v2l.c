@@ -43,8 +43,6 @@ static int kwh070kq40v2l_panel_prepare(struct drm_panel *panel)
 
 	printk(KERN_INFO "kwh070kq40_panel_prepare\n");
 
-	gpiod_set_value(pnl->gpios.power, 0);
-	msleep(120);
 	gpiod_set_value(pnl->gpios.reset, 1);
 	msleep(10); //10ms
 	gpiod_set_value(pnl->gpios.reset, 0);
