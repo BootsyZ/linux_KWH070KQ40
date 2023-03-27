@@ -4,63 +4,89 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-    compatible = "brcm,bcm2711";
+	compatible = "brcm,bcm2711";
 
-    fragment@0 {
-        target=<&dsi1>;
+	fragment@0 {
+		target=<&dsi1>;
 
-        __overlay__ {
-            status = "okay";
-            #address-cells = <1>;
-            #size-cells = <0>;
-            port {
-                dsi1_out_port: endpoint {
-                    remote-endpoint = <&panel_dsi_in>;
-                };
-            };
+		__overlay__ {
+			status = "okay";
+#address-cells = <1>;
+#size-cells = <0>;
+			port {
+			dsi1_out_port: endpoint {
+					remote-endpoint = <&panel_dsi_in>;
+				};
+			};
 
-            kwh070kq40: kwh070kq40@0 {
-                compatible      = "formike,kwh070kq40";
-                status          = "okay";
-                reg             = <0>;
-                reset-gpios     = <&gpio 27 GPIO_ACTIVE_HIGH>;   // RESET
-                power-gpios     = <&gpio 17 GPIO_ACTIVE_HIGH>;   // ENABLE
-                shlr-gpios      = <&gpio 22 GPIO_ACTIVE_HIGH>;    // SHLDR
-                updn-gpios      = <&gpio 23 GPIO_ACTIVE_HIGH>;    // UPDN
-                vc4_dsi         = <&dsi1>;
-                power-domains   = <&power 18>;
-                port {
-                    panel_dsi_in: endpoint {
-                        remote-endpoint = <&dsi1_out_port>;
-                    };
-                };
-            };
-        };
-    };
+		kwh070kq40: kwh070kq40@0 {
+				compatible      = "formike,kwh070kq40";
+				status          = "okay";
+				reg             = <0>;
+				reset-gpios     = <&gpio 27 GPIO_ACTIVE_HIGH>;   // RESET
+				power-gpios     = <&gpio 17 GPIO_ACTIVE_HIGH>;   // ENABLE
+				shlr-gpios      = <&gpio 22 GPIO_ACTIVE_HIGH>;    // SHLDR
+				updn-gpios      = <&gpio 23 GPIO_ACTIVE_HIGH>;    // UPDN
+				vc4_dsi         = <&dsi1>;
+				power-domains   = <&power 18>;
+				port {
+				panel_dsi_in: endpoint {
+						remote-endpoint = <&dsi1_out_port>;
+					};
+				};
+			timing: panel-timing {
+					clock-frequency = <51206>;
+					hdisplay = <1024>;
+					hsync_start = <1184>;
+					hsync_end = <1264>;
+					htotal = <1344>;
+					vdisplay = <600>;
+					vsync_start = <612>;
+					vsync_end = <622>;
+					vtotal = <635>;
 
-    fragment@1 {
-        target = <&gpio>;
-        __overlay__ {
-            kwh070kq40_pins: kwh070kq40_pins {
-                brcm,pins = <27 17 22 23>;
-                brcm,function = <1 1 1 1>; // out
-                brcm,pull = <0 0 0 0>; // off
-            };
-        };
+					shlr-active = <1>;
+					updn-active = <1>;
+				};
+			config: panel-config
+				{
+					test-pattern = <0>;
+				};
+			};
+		};
+	};
 
-    };
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+		kwh070kq40_pins: kwh070kq40_pins {
+				brcm,pins = <27 17 22 23>;
+				brcm,function = <1 1 1 1>; // out
+				brcm,pull = <0 0 0 0>; // off
+			};
+		};
 
-    __overrides__ {
-        reset = <&kwh070kq40_pins>,"brcm,pins:27",
-            <&kwh070kq40>,"reset-gpios:27";
+	};
 
-        power = <&kwh070kq40_pins>,"brcm,pins:17",
-            <&kwh070kq40>,"power-gpios:17";
+	__overrides__ {
+		reset = <&kwh070kq40_pins>,"brcm,pins:27", <&kwh070kq40>,"reset-gpios:27";
+		power = <&kwh070kq40_pins>,"brcm,pins:17", <&kwh070kq40>,"power-gpios:17";
+		shlr = <&kwh070kq40_pins>,"brcm,pins:22", <&kwh070kq40>,"shlr-gpios:22";
+		updn = <&kwh070kq40_pins>,"brcm,pins:23", <&kwh070kq40>,"updn-gpios:23";
 
-        shlr = <&kwh070kq40_pins>,"brcm,pins:22",
-            <&kwh070kq40>,"shlr-gpios:22";
+		clock-frequency = <&timing>, "clock-frequency:0";
+		hdisplay = <&timing>, "hdisplay:0";
+		hsync_start = <&timing>, "hsync_start:0";
+		hsync_end = <&timing>, "hsync_end:0";
+		htotal = <&timing>, "htotal:0";
+		vdisplay = <&timing>, "vdisplay:0";
+		vsync_start = <&timing>, "vsync_start:0";
+		vsync_end = <&timing>, "vsync_end:0";
+		vtotal = <&timing>, "vtotal:0";
 
-        updn = <&kwh070kq40_pins>,"brcm,pins:23",
-            <&kwh070kq40>,"updn-gpios:23";
-    };
+		test-pattern =<&config>, "test-pattern:0";
+
+		shlr-active = <&timing>, "shlr-active:0=0";
+		updn-active = <&timing>, "updn-active:0=0";
+	};
 };
